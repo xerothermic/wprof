@@ -64,7 +64,9 @@ enum track_kind {
 	TK_CUDA_PROC_GPU = 8, 	/* CUDA-using process's GPU track (by PID + GPU ID) */
 	TK_CUDA_PROC_STREAM = 9,/* CUDA-using process's GPU stream track (by PID + CUDA stream ID) */
 
-	TK_MULT = 10,
+	TK_TIMER_STACKS = 10,	/* timer sample stacks track (by TID) */
+
+	TK_MULT = 11,
 };
 
 enum track_special {
@@ -512,6 +514,11 @@ static uint64_t trackid_thread(const struct wprof_task *t)
 		return TRACK_UUID(TK_THREAD_IDLE, track_tid(t));
 	else
 		return TRACK_UUID(TK_THREAD, track_tid(t));
+}
+
+static uint64_t trackid_timer_stacks(const struct wprof_task *t)
+{
+	return TRACK_UUID(TK_TIMER_STACKS, track_tid(t));
 }
 
 static uint64_t trackid_process(const struct wprof_task *t)
@@ -1040,6 +1047,18 @@ static bool is_ts_in_range(u64 ts)
 	return true;
 }
 
+static u64 ensure_timer_stacks_track(const struct wprof_task *t)
+{
+	struct track_state *s = track_state_get_or_add(TK_TIMER_STACKS, t->tid, 0);
+
+	if (!s->exists) {
+		emit_track_descr(cur_stream, trackid_timer_stacks(t),
+				 trackid_thread(t), "Timer Stacks", 0);
+		s->exists = true;
+	}
+	return trackid_timer_stacks(t);
+}
+
 /* EV_TIMER */
 static int process_timer(struct worker_state *w, const struct wevent *e)
 {
@@ -1054,8 +1073,9 @@ static int process_timer(struct worker_state *w, const struct wevent *e)
 	int tr_id = (env.requested_stack_traces & ST_TIMER) ? e->timer.timer_stack_id : 0;
 
 	if (env.emit_timer_ticks || tr_id > 0) {
-		/* task keeps running on CPU */
-		emit_instant(e->ts, &task, IID_NAME_TIMER, IID_CAT_TIMER) {
+		u64 timer_track = ensure_timer_stacks_track(&task);
+
+		emit_track_instant(e->ts, timer_track, IID_NAME_TIMER, IID_CAT_TIMER) {
 			emit_kv_int(IID_ANNK_CPU, e->cpu);
 			if (env.emit_numa)
 				emit_kv_int(IID_ANNK_NUMA_NODE, e->numa_node);
