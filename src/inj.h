@@ -66,7 +66,7 @@ static inline void inj_set_exit_hint(enum inj_exit_hint hint, const char *msg)
 	snprintf(run_ctx->exit_hint_msg, sizeof(run_ctx->exit_hint_msg), "%s", msg);
 }
 
-int init_cupti_activities(void);
+int init_cupti_activities(const char *override_so_path);
 int start_cupti_activities(void);
 void finalize_cupti_activities(void);
 

@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sched.h>
+#include <string.h>
+#include <limits.h>
 #include <link.h>
 
 #include <usdt.h>
@@ -421,28 +423,93 @@ static void CUPTIAPI buffer_completed(CUcontext ctx, uint32_t stream_id, uint8_t
 	atomic_store(&cupti_processing, 0);
 }
 
-static bool cupti_lazy_init(void)
+/* dl_iterate_phdr callback: if any loaded DSO's path contains "libcupti",
+ * copy that path into the caller's buffer (PATH_MAX) and stop iterating.
+ * Catches versioned sonames (libcupti.so.12, libcupti.so.13) that
+ * dlopen("libcupti.so", RTLD_NOLOAD) misses. */
+static int find_loaded_cupti_cb(struct dl_phdr_info *info, size_t size, void *data)
 {
-	cupti_handle = dlopen("libcupti.so", RTLD_NOLOAD | RTLD_LAZY);
-	if (cupti_handle) {
-		struct link_map *lm;
-		int ret = dlinfo(cupti_handle, RTLD_DI_LINKMAP, &lm);
-		vlog("Found %s (base %lx, handle %lx)!\n",
-				ret == 0 ? lm->l_name : "libcupti.so",
-				ret == 0 ? lm->l_addr: -1,
-				(long)cupti_handle);
-	} else {
-		/* call dlerror() regardless to clear error */
-		const char *err_msg = dlerror();
-		vlog("Failed to find libcupti.so: %s!\n", err_msg);
-	}
+	char *out = data;
+	const char *name = info->dlpi_name;
 
-	for (int i = 0; i < ARRAY_SIZE(cupti_resolve_syms); i++) {
-		const char *sym_name = cupti_resolve_syms[i].sym_name;
-		void **sym_pptr = (void **)cupti_resolve_syms[i].sym_pptr;
-		*sym_pptr = dyn_resolve_sym(sym_name, cupti_handle);
-		if (!*sym_pptr)
+	if (!name || !*name)
+		return 0;
+	if (!strstr(name, "libcupti"))
+		return 0;
+
+	snprintf(out, PATH_MAX, "%s", name);
+	return 1; /* stop iteration */
+}
+
+static bool cupti_lazy_init(const char *override_so_path)
+{
+	if (override_so_path) {
+		char already_loaded[PATH_MAX] = "";
+		dl_iterate_phdr(find_loaded_cupti_cb, already_loaded);
+		if (already_loaded[0]) {
+			elog("Cannot use --cupti-so-path: libcupti is already loaded at %s. "
+			     "Two copies of CUPTI cannot coexist in one process.\n", already_loaded);
+			inj_set_exit_hint(HINT_ERROR, "CUPTI already loaded; --cupti-so-path conflicts");
 			return false;
+		}
+
+		cupti_handle = dlopen(override_so_path, RTLD_LAZY);
+		if (!cupti_handle) {
+			const char *err_msg = dlerror();
+			elog("Failed to dlopen('%s'): %s\n", override_so_path, err_msg ?: "(unknown)");
+			inj_set_exit_hint(HINT_ERROR, "failed to load --cupti-so-path");
+			return false;
+		}
+
+		struct link_map *lm;
+		if (dlinfo(cupti_handle, RTLD_DI_LINKMAP, &lm) == 0)
+			log("Loaded CUPTI from --cupti-so-path: %s (base %lx, handle %lx)\n",
+			    lm->l_name, lm->l_addr, (long)cupti_handle);
+
+		/* Strict resolution: only from our handle. Skip the RTLD_DEFAULT
+		 * fallback in dyn_resolve_sym() so we never accidentally pick up
+		 * a symbol from a different CUPTI version that a dependency
+		 * transitively pulled in. */
+		for (int i = 0; i < ARRAY_SIZE(cupti_resolve_syms); i++) {
+			const char *sym_name = cupti_resolve_syms[i].sym_name;
+			void **sym_pptr = (void **)cupti_resolve_syms[i].sym_pptr;
+			*sym_pptr = dlsym(cupti_handle, sym_name);
+			if (!*sym_pptr) {
+				elog("Failed to resolve '%s' from %s: %s\n",
+				     sym_name, override_so_path, dlerror() ?: "(not found)");
+				dlclose(cupti_handle);
+				cupti_handle = NULL;
+				inj_set_exit_hint(HINT_ERROR, "symbol resolution failed in --cupti-so-path");
+				return false;
+			}
+		}
+	} else {
+		cupti_handle = dlopen("libcupti.so", RTLD_NOLOAD | RTLD_LAZY);
+		if (cupti_handle) {
+			struct link_map *lm;
+			int ret = dlinfo(cupti_handle, RTLD_DI_LINKMAP, &lm);
+			vlog("Found %s (base %lx, handle %lx)!\n",
+					ret == 0 ? lm->l_name : "libcupti.so",
+					ret == 0 ? lm->l_addr: -1,
+					(long)cupti_handle);
+		} else {
+			/* call dlerror() regardless to clear error */
+			const char *err_msg = dlerror();
+			vlog("Failed to find libcupti.so: %s!\n", err_msg);
+		}
+
+		for (int i = 0; i < ARRAY_SIZE(cupti_resolve_syms); i++) {
+			const char *sym_name = cupti_resolve_syms[i].sym_name;
+			void **sym_pptr = (void **)cupti_resolve_syms[i].sym_pptr;
+			*sym_pptr = dyn_resolve_sym(sym_name, cupti_handle);
+			if (!*sym_pptr) {
+				if (cupti_handle) {
+					dlclose(cupti_handle);
+					cupti_handle = NULL;
+				}
+				return false;
+			}
+		}
 	}
 
 	cupti_phase = CUPTI_INITIALIZED;
@@ -480,9 +547,9 @@ static const char *cupti_act_kind_str(CUpti_ActivityKind kind)
 void finalize_cupti_activities(void);
 
 /* Initialize CUPTI activity setup */
-int init_cupti_activities(void)
+int init_cupti_activities(const char *override_so_path)
 {
-	if (!cupti_lazy_init()) {
+	if (!cupti_lazy_init(override_so_path)) {
 		elog("Failed to find and resolve CUPTI library!\n");
 		return -ESRCH;
 	}

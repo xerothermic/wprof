@@ -94,8 +94,10 @@ static int discover_pid_cuda_binaries(int pid, int workdir_fd, bool force)
 	}
 
 	if (has_cuda && !has_cupti) {
-		if (force) {
-			vprintf("PID %d (%s) has CUDA, but no CUPTI, but continuing nevertheless...\n", pid, proc_name(pid));
+		if (force || env.cupti_so_path) {
+			vprintf("PID %d (%s) has CUDA, but no CUPTI — will %s\n",
+				pid, proc_name(pid),
+				env.cupti_so_path ? "load CUPTI from --cupti-so-path" : "continue (forced)");
 			goto force_continue;
 		} else {
 			vprintf("PID %d (%s) has CUDA, but no CUPTI, skipping...\n", pid, proc_name(pid));
@@ -271,6 +273,16 @@ int cuda_trace_prepare(int workdir_fd, long sess_timeout_ms)
 				.session_timeout_ms = sess_timeout_ms,
 			},
 		};
+		if (env.cupti_so_path) {
+			int len = strlen(env.cupti_so_path);
+			if (len >= INJ_CUPTI_PATH_MAX) {
+				eprintf("--cupti-so-path too long (%d >= %d)\n", len, INJ_CUPTI_PATH_MAX);
+				close(dump_fd);
+				return -ENAMETOOLONG;
+			}
+			msg.cuda_session.cupti_so_path_len = len;
+			memcpy(msg.cuda_session.cupti_so_path, env.cupti_so_path, len + 1);
+		}
 		int err = uds_send_data(cuda->uds_fd, &msg, sizeof(msg), &dump_fd, 1);
 		if (err < 0) {
 			eprintf("Failed to start CUDA trace session for tracee %s: %d\n",

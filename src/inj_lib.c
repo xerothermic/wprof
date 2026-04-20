@@ -465,9 +465,13 @@ static int handle_msg(struct inj_msg *msg, int *fds, int fd_cnt)
 		}
 
 		long sess_timeout_ms = msg->cuda_session.session_timeout_ms;
-		vlog("Setting up CUDA session (timeout %ldms)...\n", sess_timeout_ms);
+		const char *override_so_path = msg->cuda_session.cupti_so_path_len > 0
+					     ? msg->cuda_session.cupti_so_path : NULL;
+		vlog("Setting up CUDA session (timeout %ldms%s%s)...\n", sess_timeout_ms,
+		     override_so_path ? ", cupti-so-path=" : "",
+		     override_so_path ?: "");
 
-		err = init_cupti_activities();
+		err = init_cupti_activities(override_so_path);
 		if (err) {
 			elog("Failed to initialize CUPTI: %d\n", err);
 			return err;

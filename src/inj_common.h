@@ -11,6 +11,9 @@
 #define MAX_UDS_FD_CNT 16
 #endif
 
+/* Capped to keep struct inj_msg under UDS_MAX_MSG_LEN (1024 bytes) */
+#define INJ_CUPTI_PATH_MAX 512
+
 #define PYTRACE_SYM_CNT 15		/* must match ARRAY_SIZE(pytrace_resolve_syms) in inj_pytrace.c */
 
 __attribute__((unused))
@@ -125,6 +128,10 @@ struct inj_msg {
 		} setup;
 		struct inj_msg_cuda_session {
 			long session_timeout_ms;
+			/* If cupti_so_path_len > 0, load CUPTI from this explicit path
+			 * instead of relying on the target already having it loaded. */
+			int cupti_so_path_len;
+			char cupti_so_path[INJ_CUPTI_PATH_MAX];
 		} cuda_session;
 		struct inj_msg_pytrace_session {
 			long session_timeout_ms;

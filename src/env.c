@@ -74,6 +74,7 @@ enum {
 	OPT_PMU_COUNTER = 1016,
 	OPT_NO_PMU = 1017,
 	OPT_JSON_SCHEMA = 1018,
+	OPT_CUPTI_SO_PATH = 1019,
 
 	OPT_ALLOW_TID = 2000,
 	OPT_DENY_TID = 2001,
@@ -105,6 +106,9 @@ static const struct argp_option opts[] = {
 	{ "trace", 'T', "FILE", 0, "Emit Perfetto trace to specified file (use '-' for stdout)" },
 	{ "json-trace", 'J', "FILE", 0, "Emit JSON trace to specified file (use '-' for stdout; see --json-schema)" },
 	{ "json-schema", OPT_JSON_SCHEMA, NULL, 0, "Print JSON output schema and exit" },
+	{ "cupti-so-path", OPT_CUPTI_SO_PATH, "FILE", 0,
+	  "Explicit path to libcupti.so to load inside the target process. "
+	  "Only takes effect when the target has CUDA but no CUPTI loaded; fails if libcupti is already present." },
 
 	{ "replay", 'R', NULL, 0, "Re-process raw dump (no actual BPF data gathering)" },
 	{ "replay-start", OPT_REPLAY_OFFSET_START, "TIME_OFFSET", 0, "Session start time offset (replay mode only). Supported syntax: 2s, 1.03s, 10.5ms, 12us, 101213ns" },
@@ -247,6 +251,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 'D':
 		env.data_path = strdup(arg);
+		break;
+	case OPT_CUPTI_SO_PATH:
+		env.cupti_so_path = strdup(arg);
 		break;
 	case 'R':
 		env.replay = true;
