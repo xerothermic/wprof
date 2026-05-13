@@ -158,7 +158,8 @@ static const struct argp_option opts[] = {
 
 	/* user-defined tracing */
 	{ "utrace", 'U', "DEFINITION", 0,
-	  "User-defined trace probe definition (use @<file> to read from file). Repeatable." },
+	  "User-defined trace probe definition (use @<file> to read from file). "
+	  "USDT cfgs accept 'pid:nvidia-smi' to auto-attach to all GPU processes. Repeatable." },
 
 	/* user-provided metadata */
 	{ "metadata", 'M', "KEY=VALUE", 0,
