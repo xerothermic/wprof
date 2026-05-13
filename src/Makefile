@@ -13,6 +13,14 @@ BLAZESYM_DEBUG ?=
 #
 STATIC ?=
 LTO ?=
+THINLTO ?=
+PGO_GEN ?=
+PGO_USE ?=
+PGO_DIR ?= $(abspath $(OUTPUT)/pgo-profiles)
+BOLT ?=
+ifneq ($(BOLT),)
+BOLT_LDFLAGS := -Wl,--emit-relocs
+endif
 
 # for installation
 DESTDIR ?=
@@ -56,9 +64,12 @@ INCLUDES := -I$(OUTPUT) -I../include -I../libbpf/include/uapi				\
 CFLAGS ?= -g -O$(if $(DEBUG),0,2) -Wall
 ALL_CFLAGS := $(CFLAGS) $(EXTRA_CFLAGS) -fno-omit-frame-pointer				\
 	      -Wno-c23-extensions -Wno-sign-compare -Wno-format-truncation		\
-	      $(if $(LTO),-flto=auto -ffat-lto-objects) $(PYSTACKS_CFLAGS)		\
-	      $(if $(DEBUG),-DDEBUG)
-ALL_LDFLAGS := $(LDFLAGS) $(EXTRA_LDFLAGS) -lrt -ldl -lpthread -lm
+	      $(if $(LTO),-flto=auto -ffat-lto-objects)				\
+	      $(if $(THINLTO),-flto=thin)					\
+	      $(if $(PGO_GEN),-fprofile-generate=$(PGO_DIR))			\
+	      $(if $(PGO_USE),-fprofile-use=$(PGO_DIR))			\
+	      $(PYSTACKS_CFLAGS) $(if $(DEBUG),-DDEBUG)
+ALL_LDFLAGS := $(LDFLAGS) $(EXTRA_LDFLAGS) $(if $(PGO_GEN),-fprofile-generate=$(PGO_DIR)) -lrt -ldl -lpthread -lm
 
 # Get Clang's default includes on this system. We'll explicitly add these dirs
 # to the includes list when compiling with `-target bpf` because otherwise some
@@ -208,7 +219,7 @@ $(OUTPUT)/libwprofinj.so: $(patsubst %.c,$(OUTPUT)/%.o,$(WPROFINJ_SRCS))			\
 			  $(WPROFINJ_HDRS)							\
 			  | $(OUTPUT)
 	$(call msg,CC,$@)
-	$(Q)$(CC) $(ALL_CFLAGS) -shared $(filter %.c %.a %.o,$^) -o $@
+	$(Q)$(CC) $(ALL_CFLAGS) -shared $(filter %.c %.a %.o,$^) $(BOLT_LDFLAGS) -o $@
 
 $(OUTPUT)/libwprofinj_embed.o: $(OUTPUT)/libwprofinj.so
 	$(call msg,LD,$@)
