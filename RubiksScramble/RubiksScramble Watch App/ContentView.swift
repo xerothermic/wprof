@@ -5,6 +5,19 @@ struct ContentView: View {
     @State private var moves = ScrambleGenerator.generate()
 
     var body: some View {
+        TabView {
+            ScrambleScreen(length: $length, moves: $moves)
+            CubeMapView(moves: moves)
+        }
+        .tabViewStyle(.verticalPage)
+    }
+}
+
+private struct ScrambleScreen: View {
+    @Binding var length: Int
+    @Binding var moves: [String]
+
+    var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
@@ -20,20 +33,26 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Button(action: newScramble) {
+                    Button {
+                        moves = ScrambleGenerator.generate(length: length)
+                    } label: {
                         Label("New Scramble", systemImage: "shuffle")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+
+                    VStack(spacing: 2) {
+                        Image(systemName: "chevron.compact.down")
+                        Text("Cube map")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
                 }
                 .padding(.horizontal, 4)
             }
             .navigationTitle("Scramble")
         }
-    }
-
-    private func newScramble() {
-        moves = ScrambleGenerator.generate(length: length)
     }
 }
 

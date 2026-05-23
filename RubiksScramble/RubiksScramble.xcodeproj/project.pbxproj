@@ -10,6 +10,8 @@
 		AA0000000000000000000011 /* RubiksScrambleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000010 /* RubiksScrambleApp.swift */; };
 		AA0000000000000000000013 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000012 /* ContentView.swift */; };
 		AA0000000000000000000015 /* ScrambleGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000014 /* ScrambleGenerator.swift */; };
+		AA0000000000000000000019 /* CubeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000018 /* CubeState.swift */; };
+		AA000000000000000000001B /* CubeMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000001A /* CubeMapView.swift */; };
 		AA0000000000000000000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000016 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -18,6 +20,8 @@
 		AA0000000000000000000010 /* RubiksScrambleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RubiksScrambleApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000014 /* ScrambleGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrambleGenerator.swift; sourceTree = "<group>"; };
+		AA0000000000000000000018 /* CubeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CubeState.swift; sourceTree = "<group>"; };
+		AA000000000000000000001A /* CubeMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CubeMapView.swift; sourceTree = "<group>"; };
 		AA0000000000000000000016 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -54,6 +58,8 @@
 				AA0000000000000000000010 /* RubiksScrambleApp.swift */,
 				AA0000000000000000000012 /* ContentView.swift */,
 				AA0000000000000000000014 /* ScrambleGenerator.swift */,
+				AA0000000000000000000018 /* CubeState.swift */,
+				AA000000000000000000001A /* CubeMapView.swift */,
 				AA0000000000000000000016 /* Assets.xcassets */,
 			);
 			path = "RubiksScramble Watch App";
@@ -131,6 +137,8 @@
 				AA0000000000000000000013 /* ContentView.swift in Sources */,
 				AA0000000000000000000011 /* RubiksScrambleApp.swift in Sources */,
 				AA0000000000000000000015 /* ScrambleGenerator.swift in Sources */,
+				AA0000000000000000000019 /* CubeState.swift in Sources */,
+				AA000000000000000000001B /* CubeMapView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
